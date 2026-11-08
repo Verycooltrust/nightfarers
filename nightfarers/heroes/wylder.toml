@@ -1,0 +1,439 @@
+# Wylder: everything the generators need that is specific to this hero. Shared nightfarer logic stays in src/.
+# Ids come from Nightreign's params, see docs/port_report/wylder.md. Evidence for each choice: NOTES.md.
+
+[hero]
+name = "Wylder"
+nr_hero_id = 1
+nr_type = "BALANCE"
+clip_group = 900
+# Nightreign's own hero-select text (menu_dlc01 CL_MenuText 138500, first paragraph).
+description = "A young man long in pursuit of the Nightlord. This swordsman has defied death at every turn with his stunning sixth sense for combat. He swore to avenge the Night in the name of his massacred tribe."
+
+[class]
+# Class screen: BaseChrSelectMenuParam rows 2000-2011 are the 12 classes in menu order. Wylder is the 13th entry; the
+# Samurai's rows are the templates (flasks, gestures, faces). Menu text slots: name 288100+n, 297130+n by position n.
+menu_row = 2012
+row = 3012
+variant = 3124
+text = 288112
+slot_text = 297142
+image_id = 18
+template_class = 3007
+template_variant = 3114
+template_menu = 2006
+template_list_item = 100211
+
+[class.fields]
+# Stats from Nightreign's CharaInitParam (hero 1), +1 Str and Dex, +4 End (user: he must meet his sword's 16 Str / 13 Dex, and start
+# below heavy load with 35.8 of gear, keeping the armor's weight). Elden Ring level = sum of the 8 stats - 79.
+baseVit = 13
+baseWil = 10
+baseEnd = 16
+baseStr = 17
+baseDex = 13
+baseMag = 9
+baseFai = 7
+baseLuc = 10
+soulLv = 16
+equip_Wep_Right = 3750000
+equip_Wep_Left = 30750000
+equip_Subwep_Left = -1
+equip_Helm = 9100000
+equip_Armer = 9100100
+equip_Gaunt = 9100200
+equip_Leg = 9100300
+arrowNum = 0
+subArrowNum = 0
+
+# Armor reuses the Knight set's ER rows as templates (stats, icons, hide flags); only the model changes. The Knight
+# Helm's invisibleFlags hide the player's own face and hair. hd/am/lg_m_5000 are empty stubs; bd_m_5000 is the outfit.
+[[armor]]
+id = 9100000
+template = 1500000
+model = 5000
+name = "Wylder's Visage"
+
+[[armor]]
+id = 9100100
+template = 1500100
+model = 5000
+name = "Wylder's Garb"
+nightfarer_marker = true
+
+[[armor]]
+id = 9100200
+template = 1500200
+model = 5000
+name = "Wylder's Arms"
+
+[[armor]]
+id = 9100300
+template = 1500300
+model = 5000
+name = "Wylder's Legs"
+
+[[weapon]]
+id = 3750000
+template = 3180000  # Claymore
+model = 5000
+name = "Wylder's Greatsword"
+# swordArtsParamId 106 = NR's value: Stamp (Upward Cut) (user; Claymore's 100 is Lion's Claw).
+fields = { behaviorVariationId = 390, spAtkcategory = 290, absorpParamId = 9000, swordArtsParamId = 106 }
+
+[[weapon]]
+id = 30750000
+template = 30000000  # Buckler
+model = 5001
+name = "Wylder's Small Shield"
+fields = {}
+
+[absorp]
+# WepAbsorpPosParam: greatsword row 25, except model 1 sits on the left-hand dummy 21, where NR fires the claw from.
+id = 9000
+template = 25
+fields = { right_1 = 21, left_1 = 21, both_1 = 21, leftHang_1 = 21, rightHang_1 = 21, leftBoth_1 = 21 }
+
+[moveset]
+# NR's attack behaviours as variation 390: greatsword variation 300 overlaid with hero variation 350. Attack rows are
+# copied to attack_offset + NR id (123 of NR's ids exist in Elden Ring with other contents).
+nr_variations = [300, 350]
+variation = 390
+attack_offset = 1000000000
+nr_clip_group = 25
+override_group = 290
+# NR's sword has heroMovesetOverrideID 270: Wylder's own swings. Its clips and TAE replace a025's for the ids it has (39 of 97);
+# the rest stay a025's. Recorded in NR: refs/wylder/nr_user2.jsonl plays 270032000, 270032500... [User].
+hero_clip_group = 270
+# NR-only SpEffects on the a25 TAE (relic and hero hooks, missing or different in ER), dropped.
+tae_drop_speffects = [7030801, 7030811, 7030821, 7031801, 7031901, 7031911, 7031921, 7035101, 7035111, 7035121, 8420101, 8420201, 8642001, 8980401]
+
+[skill]
+# Claw Shot: TAE judges 6000+ resolve to variation + 6 (NR 306 -> Wylder 396). Bullets come from NR's Bullet.param
+# dumped by flvertool paramdump; the colliding 278x ids move to 9104780+.
+variation_offset = 6
+tae_ids = [500000, 500005, 500010, 500015, 500020, 500021, 505000, 505005, 505010, 509000, 509001]
+clip_glob = "a900_50*.hkx"
+bullet_remap = [[2780, 9104780], [2781, 9104781], [2782, 9104782], [2783, 9104783]]
+tae_speffects = [700510, 700511, 700530, 7020001, 7020003]
+effects = [334400, 334410, 334411, 334412, 334420, 334430, 334440, 334450, 334460, 460070, 460020]
+
+# The claw hit (NR 878800000, spawned by the native helper) goes through shields like ER's unblockable incantations and
+# staggers a step longer than NR's, so a pulled target can be punished before it recovers (user tests).
+[[skill.attack_overrides]]
+id = 878800000
+fields = { disableGuard = 1, dmgLevel = 2 }
+
+# Onslaught Stake damage. NR's rows are percentages only (quick and air 100, charged 150; a light swing is 125), which reads as
+# weak for an ultimate in ER: 95 against a soldier [Run]. Percentages from the Neightreign modpack's (150, 230), then +25 % with the fire (user: a bit more): 185, 285, fire 290, 375. Fully charged raised again (user: 2022 at 60/60 is too low for it): 430, fire 450. Not NR's.
+# A flat element on these weapon-tied rows does nothing: 230 % + 300 fire did 257 and 225 on a Tree Sentinel, with or without
+# isAddBaseAtk [User], about the weapon part alone [Inferred]. See [[ultimate.fire_hits]].
+[[skill.attack_overrides]]
+id = 700000006
+fields = { atkPhysCorrection = 185, atkMagCorrection = 185, atkFireCorrection = 185, atkThunCorrection = 185, atkDarkCorrection = 185 }
+
+[[skill.attack_overrides]]
+id = 700000016
+fields = { atkPhysCorrection = 185, atkMagCorrection = 185, atkFireCorrection = 185, atkThunCorrection = 185, atkDarkCorrection = 185 }
+
+[[skill.attack_overrides]]
+id = 700000001
+fields = { atkPhysCorrection = 430, atkMagCorrection = 430, atkFireCorrection = 430, atkThunCorrection = 430, atkDarkCorrection = 430 }
+
+# NR's hit effect 334400 shows a mini tornado at the target in ER that NR doesn't show (user).
+[[skill.bullet_overrides]]
+id = 98800001
+fields = { sfxId_Bullet = -1 }
+
+[ultimate]
+# Onslaught Stake. Recorded in NR (refs/wylder/nr_user2.jsonl): bullets 30900005 -> 30900006 + 30909100 on the quick form,
+# 30900000 -> 30900001 charged, 30900015 -> 30900016 in the air. TAE judge 7000+n = NR's row 700000000+n. Elden Ring launches
+# weapon-art bullets by judge 9xxx -> BehaviorParam_PC 900000xxx (as a working Stake mod does), tied to the equipped weapon,
+# so judge map: [NR judge, new judge]. NR's 7030 (bullet 30900100) never fired in the recording: left out.
+nr_row_base = 700000000
+judge_map = [[7001, 9701], [7006, 9706], [7015, 9715], [7490, 9790]]
+tae_ids = [600000, 600005, 600100, 600200, 605000, 605200]
+clip_glob = "a900_60*.hkx"
+tae_drop_types = [1000, 1002, 530, 10150]
+# NR's ChrActionFlag 146 "Ultimate IFrames" (whole clip) -> Elden Ring's 94 "Perfect Invincibility" (146 is unused in ER's TAE).
+iframe_flag_map = [146, 94]
+# NR's 530 InvokeChrPhysicsVelocity (dropped above, ER lacks it) is the air Stake's hop and recoil: src/native STAKE_AIR_RECOIL.
+tae_speffects = [6999615, 91001, 102060, 709300]
+effects = [460000, 460001, 460002, 460003, 460005, 460010, 460011, 460021, 460022]
+device_dummy = 3
+body_dummy = 451
+
+# The Stake's fire: its own hit, not tied to the weapon, spawned by the native helper at the strike (src/native STAKE_FIRE_HITS).
+# Attack row built like the claw's, whose flat damage works when spawned this way [Run]; bullet shaped like the Stake's hit.
+# fire = the modpack's flat values +25 %; the helper scales them with Strength + Dexterity.
+[[ultimate.fire_hits]]
+bullet = 30900901
+attack = 700000901
+template_bullet = 30900001
+fire = 450
+
+[[ultimate.fire_hits]]
+bullet = 30900902
+attack = 700000902
+template_bullet = 30900006
+fire = 290
+
+[passive]
+# Sixth Sense, recorded in NR (refs/wylder/nr_sixth.jsonl, 72.4 s): the lethal hit ends buff 700600, starts 700601, and the script
+# (env 391 / 392) plays Wild_SuperAvoidance: RollingVariationIndex 7, W_Rolling, clips 27300-03 (their TAE imports the a000_02721x
+# files), here direction Back, as recorded. The engine part is the native helper's (src/native SixthSense). "Cheat death a single time",
+# until restored at a Site of Grace or by revival (NR text).
+clip_ids = ["027210", "027211", "027212", "027213"]
+tae_ids = [27300, 27301, 27302, 27303]
+tae_drop_speffects = [8410101, 7032401, 8800101]
+speffects = [430]
+speffect_overrides = []
+
+[sound]
+# NR's hero bank under an unused Elden Ring character id, loaded by the user's ERSoundBankLoader (a third-party DLL: copied from
+# their install at build time, not ours to ship) while the weapon's spAtkcategory is the override group.
+bank = "hero01"
+chr_bank_id = 8990
+# Elden Ring's LoadBank refuses hero01 (AK_Fail) with its one switch container (157344020, the hero's top node under ER's mixer
+# 855533467) and accepts it without (src/bank_bisect.py, log: AK_Success [Run]). Wwise object types to leave out.
+drop_object_types = [6]
+
+# Marker SpEffects the native helper applies and the player script reads.
+[[markers]]
+id = 9103001
+what = "skill (Y + LT)"
+seconds = 0.1
+
+[[markers]]
+id = 9103002
+what = "ultimate (Y + RT)"
+seconds = 0.1
+
+[[markers]]
+id = 9103003
+what = "skill held"
+seconds = 0.1
+
+[[markers]]
+id = 9103004
+what = "ultimate held"
+seconds = 0.1
+
+[[markers]]
+id = 9103005
+what = "crouch or stand (Y + L3; L3 alone is Surge Sprint)"
+seconds = 0.1
+
+[[markers]]
+id = 9103030
+what = "Sixth Sense dodge"
+seconds = 1.0
+
+[[markers]]
+id = 9103010
+what = "Claw Shot hooked small: pull"
+seconds = 1.0
+
+[[markers]]
+id = 9103011
+what = "Claw Shot hooked large: move"
+seconds = 1.0
+
+[[markers]]
+id = 9103020
+what = "Claw Shot cooldown"
+seconds = 8.0
+
+[graph]
+# Behaviour-graph nodes on top of the shared nightfarer ones (src/graft_behavior.py).
+clip_group_clones = [[25, 290]]
+# The dodge is a branch of the roll: [new selector, ER selector, NR generator, new variable, variable cloned from].
+selector_wraps = [
+    ["NF_Rolling_Sixth_MSG", "Rolling_Selector", "Wild_SuperAvoidance_Selector", "NFSixthSense", "JumpAttack_HandCondition"],
+    ["NF_Rolling_Selftrans_Sixth_MSG", "Rolling_Selftrans_Selector", "Wild_SuperAvoidance_SelfTrance_Selector", "NFSixthSense", "JumpAttack_HandCondition"],
+]
+grafts = [
+    # NR's Skill state (Skill_SM > FookShot_SM, nested), walking fire in the half-blend machines, and the aim pose
+    # (AddFookShotSelector, a Master Blend child weighted by AddFookShotBlend).
+    { node = "Skill", kind = "state", parent = "Master_SM" },
+    { node = "FookShotFire_Walk", kind = "state", parent = "Lower_SM" },
+    { node = "FookShotFire_Walk_Upper", kind = "state", parent = "Upper_SM" },
+    { node = "AddFookShotSelector", kind = "blend_child", parent = "Master Blend" },
+    # Onslaught Stake: Ultra > Ultra_SM > PileBunker > PileBunker_SM (ground, air, landing, early cancel).
+    { node = "Ultra", kind = "state", parent = "Master_SM" },
+]
+
+[script]
+# NR functions copied by name from the decompiled c0000.hks, with engine-only queries answered by NF_* helpers that
+# read the native helper's marker SpEffects (src/native).
+port = ["ExecFookShot", "FookShotHit", "CalculateKnockbackRate", "ExecFookShotModeEnd", "IsFookShotMode",
+        "FookShotCommonFunction", "FookShotFire_onActivate", "FookShotFire_onUpdate", "FookShotPull_onUpdate",
+        "FookShotMove_onUpdate", "FookShotMoveBreak_onUpdate", "FookShotAdditionalAttack_onUpdate",
+        "AirFookShotCommonFunction", "AirFookShotFire_onActivate", "AirFookShotFire_onUpdate",
+        "AirFookShotMove_onUpdate", "AirFookShotPull_onUpdate", "Skill_Activate", "Skill_Update",
+        "SetSkillGeneratorTransitionIndex", "SpeedUpdate2", "SetSlowFeet",
+        "Rolling_onActivate", "Rolling_Selftrans_onActivate",
+        "PileBunkerStart_onUpdate", "PileBunkerCancelEarly_onUpdate", "AirUltCommonFunction",
+        "AirPileBunkerStart_onActivate", "AirPileBunkerStart_onUpdate", "AirPileBunkerLand_onActivate",
+        "AirPileBunkerLand_onDeactivate", "AirPileBunkerLand_onUpdate"]
+subst = [["env(371)", "NF_HeroType()"], ["env(1108, ACTION_ARM_SKILL)", "NF_SkillHeld()"],
+         ["env(1108, ACTION_ARM_ULTRA)", "NF_UltHeld()"],
+         ["env(1122, ", "env(1108, "], ["env(412)", "NF_FookShotHitType()"], ["env(413)", "NF_FookShotDist()"],
+         ["env(411)", "FALSE"]]
+header = '''NF_SP_SKILL = 9103001
+NF_SP_SKILL_HELD = 9103003
+NF_SP_HOOK_PULL = 9103010
+NF_SP_HOOK_MOVE = 9103011
+NF_SKILL_LATCH = 0
+NF_SP_ULT = 9103002
+NF_SP_ULT_HELD = 9103004
+NF_ULT_LATCH = 0
+NF_SP_SIXTH = 9103030
+NF_SIXTH_LATCH = 0
+NF_SIXTH_TRIES = 0
+'''
+helpers = '''
+
+-- Nightreign engine queries for Claw Shot, from the native helper's markers (9103001 skill pressed, 9103003 held,
+-- 9103010 claw hooked a small target = NR hit type 21 pull, 9103011 a large one = 20 move).
+function NF_HeroType()
+    if IsNightfarer() == TRUE then
+        return HERO_BALANCE
+    end
+    return HERO_NONE
+end
+
+function NF_SkillHeld()
+    if env(1116, NF_SP_SKILL_HELD) == TRUE then
+        return 1
+    end
+    return 0
+end
+
+function NF_FookShotHitType()
+    if env(1116, NF_SP_HOOK_PULL) == TRUE then
+        return 21
+    elseif env(1116, NF_SP_HOOK_MOVE) == TRUE then
+        return 20
+    end
+    return 0
+end
+
+function NF_FookShotDist()
+    return 1000
+end
+
+function NF_UltHeld()
+    if env(1116, NF_SP_ULT_HELD) == TRUE then
+        return 1
+    end
+    return 0
+end
+
+-- Called by NR's shared air ultimate function; they do nothing for Wylder (other heroes' air ultimates, Undertaker's counter).
+function ExecAirUlt()
+    return FALSE
+end
+
+function ExecAttackerUltCounterReset()
+    return FALSE
+end
+
+-- NR ExecAttack's ATTACK_REQUEST_ULTRA and its air branch for HERO_BALANCE, on the native helper's press marker.
+function NF_ExecUlt()
+    if env(1116, NF_SP_ULT) == FALSE then
+        NF_ULT_LATCH = 0
+        return FALSE
+    end
+    if NF_ULT_LATCH == 1 or IsNightfarer() == FALSE then
+        return FALSE
+    end
+    NF_ULT_LATCH = 1
+    if env(201) == TRUE then
+        SetVariable("IndexPileBunker", 0)
+        if env(1116, 100002) == TRUE then
+            SetVariable("IndexPileBunker", 2)
+        elseif env(1116, 700510) == TRUE then
+            SetVariable("IndexPileBunker", 1)
+        end
+        ExecEventAllBody("W_PileBunkerStart")
+    else
+        SetVariable("JumpAttackForm", 0)
+        SetVariable("JumpUseMotion_Bool", false)
+        SetVariable("JumpMotion_Override", 0.009999999776482582)
+        SetVariable("JumpAttack_Land", 0)
+        SetVariable("SwingPose", 0)
+        ExecEventAllBody("W_AirPileBunkerStart")
+    end
+    return TRUE
+end
+'''
+
+# NR ExecPassiveAction ends with ExecFookShot (release fires the claw).
+[[script.patches]]
+function = "ExecPassiveAction"
+old = '''    if ExecFallStart(fall_type) == TRUE then
+        ResetDamageCount()
+        return TRUE
+    end
+'''
+new = '''    if ExecFallStart(fall_type) == TRUE then
+        ResetDamageCount()
+        return TRUE
+    end
+    if ExecFookShot() == TRUE then
+        return TRUE
+    end
+    if NF_ExecUlt() == TRUE then
+        return TRUE
+    end
+'''
+
+# In the air too: NR's ExecAirUlt and air Claw Shot run from its jump and fall functions.
+[[script.prologues]]
+function = "JumpCommonFunction"
+call = "if ExecFookShot() == TRUE or NF_ExecUlt() == TRUE then return TRUE end"
+
+[[script.prologues]]
+function = "FallCommonFunction"
+call = "if ExecFookShot() == TRUE or NF_ExecUlt() == TRUE then return TRUE end"
+
+# Sixth Sense's dodge, on the native helper's marker: NR ExecDamage's env(391) branch, direction Back.
+[[script.epilogues]]
+function = "Update"
+code = '''    if env(1116, NF_SP_SIXTH) == TRUE then
+        if NF_SIXTH_LATCH == 0 then
+            NF_SIXTH_LATCH = 1
+            NF_SIXTH_TRIES = 0
+            SetVariable("NFSixthSense", 1)
+            SetVariable("EvasionWeightIndex", 0)
+            SetVariable("RollingDirectionIndex_SelfTrans", 1)
+            SetVariable("RollingDirectionIndex", 1)
+        end
+        -- Again until the dodge's clip applies 430: a big knockdown on the same frame overrode a single request (user died to a giant).
+        if NF_SIXTH_LATCH == 1 and env(1116, 430) == TRUE then
+            NF_SIXTH_LATCH = 2
+        elseif NF_SIXTH_LATCH == 1 then
+            -- A few spaced tries: if 430 never showed, repeating every frame would keep restarting the clip.
+            if NF_SIXTH_TRIES <= 24 and math.mod(NF_SIXTH_TRIES, 8) == 0 then
+                ExecEventAllBody("W_Rolling")
+            end
+            NF_SIXTH_TRIES = NF_SIXTH_TRIES + 1
+        end
+    elseif NF_SIXTH_LATCH ~= 0 then
+        NF_SIXTH_LATCH = 0
+        SetVariable("NFSixthSense", 0)
+    end
+'''
+
+# NR ExecAttack starts the aim pose on the skill press, here on the native helper's press marker.
+[[script.epilogues]]
+function = "Update"
+code = '''    if IsNightfarer() == TRUE and env(1116, NF_SP_SKILL) == TRUE then
+        if NF_SKILL_LATCH == 0 and GetVariable("AddFookShotBlend") == 0 then
+            SetVariable("AddFookShotBlend", 1)
+        end
+        NF_SKILL_LATCH = 1
+    else
+        NF_SKILL_LATCH = 0
+    end
+'''

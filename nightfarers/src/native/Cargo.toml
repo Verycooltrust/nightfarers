@@ -1,0 +1,24 @@
+[package]
+name = "nightfarers_native"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Elden Ring bindings: github.com/vswarte/fromsoftware-rs, pinned at commit 57023153 (MIT/Apache NON-AI licence, see THIRD_PARTY_NOTICES.md).
+[dependencies]
+eldenring = { git = "https://github.com/vswarte/fromsoftware-rs", rev = "57023153d786c4b13fe95d9170e6dcd9d35093ea" }
+fromsoftware-shared = { git = "https://github.com/vswarte/fromsoftware-rs", rev = "57023153d786c4b13fe95d9170e6dcd9d35093ea" }
+# The overlay fromsoftware-rs's own debug tool uses, at the commit its lock file pins.
+hudhook = { git = "https://github.com/veeenu/hudhook", rev = "6a361de92396bcbb1f46cec31348fd73344ed031" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+
+[features]
+default = []
+# Test rig for development only: pad scripts, run recorder, focus and mouse guard (pad_script.rs, rig.rs), active only
+# with NF_RIG set. Never in player builds. Dev builds: cargo build --release --features rig.
+rig = []
