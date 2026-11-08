@@ -22,7 +22,7 @@ There are two parts:
 
 ```
 git clone https://github.com/Verycooltrust/nightfarers
-cd nightfarers/src/native
+cd nightfarers/nightfarers/src/native
 cargo build --release --locked
 ```
 
