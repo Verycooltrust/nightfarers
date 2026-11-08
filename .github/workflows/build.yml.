@@ -1,0 +1,55 @@
+# Builds nightfarers_native.dll from this repository on GitHub's Windows runner.
+# Every push: the DLL and its SHA-256 are kept as a workflow artifact.
+# Publishing a GitHub release (tag like v0.1.0): the same files are attached to it. That DLL is the one shipped on Nexus Mods.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dll:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup default 1.99.1
+
+      - name: Build (release, no test rig)
+        working-directory: nightfarers/src/native
+        run: cargo build --release --locked
+
+      - name: Hash
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item nightfarers/src/native/target/release/nightfarers_native.dll out/
+          Copy-Item nightfarers/THIRD_PARTY_NOTICES.md, nightfarers/LICENSE out/
+          $h = (Get-FileHash out/nightfarers_native.dll -Algorithm SHA256).Hash.ToLower()
+          "$h  nightfarers_native.dll" | Out-File -Encoding ascii out/nightfarers_native.dll.sha256
+          "SHA-256: $h" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightfarers_native
+          path: out/
+
+      - name: Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/nightfarers_native.dll
+            out/nightfarers_native.dll.sha256
+            out/THIRD_PARTY_NOTICES.md
+            out/LICENSE
