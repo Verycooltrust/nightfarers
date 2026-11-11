@@ -1,6 +1,6 @@
 # Nightfarers for Elden Ring
 
-Play Nightreign's Wylder in Elden Ring. This is version 0.1, and Wylder is the only hero so far.
+Play Nightreign's Wylder in Elden Ring. This is version 0.2, and Wylder is the only hero so far.
 
 - **Wylder as a starting class.** He's the 13th class on the character creation screen, with his own stats, armour, greatsword and shield.
 - **Skill: Claw Shot.** Press **Y + LT** (Triangle + L2). It pulls small enemies to you and pulls you to large ones.
@@ -45,6 +45,17 @@ The launcher always starts the game offline, with Easy Anti-Cheat off (me3 does 
 | Surge Sprint | L3 |
 | Unstuck (if you're stuck in a pit) | Hold L3 + R3 for 2 seconds |
 
+## What's new in 0.2
+
+- **Claw Shot no longer wastes its cooldown.** If you pressed Y + LT too soon after a shot, the game ignored the press but the 8-second cooldown still started. Now the charge comes back when the shot doesn't fire.
+- **Optional add-on: Two Claw Shots.** A separate optional download that gives Claw Shot two charges (see below).
+
+## Optional add-on: Two Claw Shots
+
+Like Nightreign's relic "[Wylder] +1 additional Character Skill use". Claw Shot gets two charges. Each one takes 8 seconds to come back, one at a time. The skill icon's ring runs once per charge, and a gold **2** shows when both are ready.
+
+To add it, download **Two Claw Shots** from the mod's optional files and copy `claw_two_uses.txt` into `Nightfarers\native\`. To remove it, delete that file. Restart the game after adding or removing it.
+
 ## Doesn't work with other overhaul mods
 
 Nightfarers replaces the game's `regulation.bin` (all item and character data) and the player character's animations. Don't combine it with other mods that change those files, such as large overhauls or other moveset mods. The launcher loads only Nightfarers, so the mods you already have are left alone and stay off while you play this.
@@ -65,7 +76,7 @@ Delete the `Nightfarers` folder. If you also want to remove your Nightfarers cha
 
 - `launch_nightfarers.bat` starts the game. It writes `nightfarers.me3` (the me3 profile) on each launch, and the sound loader's settings too if the sound loader is installed.
 - `package\` holds the game data: Wylder's model, animations, effects, sounds, menus and text.
-- `native\nightfarers_native.dll` handles the button combos, Claw Shot, Onslaught Stake, Sixth Sense, the HUD and unstuck.
+- `native\nightfarers_native.dll` handles the button combos, Claw Shot (and its optional second charge), Onslaught Stake, Sixth Sense, the HUD and unstuck.
 
 ## Credits
 
