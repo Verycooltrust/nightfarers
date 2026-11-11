@@ -646,6 +646,73 @@ const SPEFFECT_SIXTH_DODGE: i32 = 9103030;
 /// The dodge's invincibility: NR's clip holds 430 for 0.67 s; a little more because the dodge can start a few frames late.
 const SIXTH_INVINCIBLE: Duration = Duration::from_millis(1000);
 const CLAW_COOLDOWN: f32 = 8.0;
+/// Optional add-on, NR's relic "[Wylder] +1 additional Character Skill use" (SpEffect 7033200, additionalCharacterSkillUse 1):
+/// this file next to the DLL gives the Claw Shot 2 charges. Each charge has its own 8 s refill, but only one refills at a time
+/// (user's account of NR). The cooldown SpEffect is the refill clock.
+const TWO_CLAWS_FILE: &str = "claw_two_uses.txt";
+
+struct ClawCharges {
+    max: u32,
+    ready: u32,
+    /// A refill was started; `seen` once the cooldown SpEffect showed up, so a refill applied this frame isn't taken as finished.
+    refilling: bool,
+    seen: bool,
+    /// A charge spent on a press whose shot isn't confirmed yet, and when the button came up. A press the game refused (too soon
+    /// after the last shot, user report) never plays a fire animation: the charge comes back after the hook window.
+    unconfirmed: Option<Option<Instant>>,
+}
+
+impl ClawCharges {
+    /// Advances the refill and spends a charge on a press. Returns whether the press may shoot.
+    fn frame(&mut self, player: &mut PlayerIns, cooling: bool, pressed: bool) -> bool {
+        if self.refilling {
+            if cooling {
+                self.seen = true;
+            } else if self.seen {
+                self.refilling = false;
+                self.ready = (self.ready + 1).min(self.max);
+                log(&format!("Claw charge back: {}/{}", self.ready, self.max));
+            }
+        }
+        let shoot = pressed && self.ready > 0;
+        if shoot {
+            self.ready -= 1;
+            if self.unconfirmed.is_some() {
+                log("Claw charge: earlier press never fired, kept spent");
+            }
+            self.unconfirmed = Some(None);
+        }
+        if self.ready < self.max && !self.refilling {
+            player.apply_speffect(SPEFFECT_SKILL_COOLDOWN, true);
+            self.refilling = true;
+            self.seen = false;
+        }
+        shoot
+    }
+
+    /// Confirms the charge once a fire animation starts after the release, or gives it back if none did.
+    fn confirm(&mut self, player: &mut PlayerIns, released: bool) {
+        let Some(up) = self.unconfirmed else { return };
+        let up = match up {
+            None if released => { self.unconfirmed = Some(Some(Instant::now())); return; }
+            None => return,
+            Some(t) => t,
+        };
+        // Newest animation, started since the release: an older shot's fire clip may still be playing.
+        let (anim, play) = current_anim(&player.chr_ins);
+        if FIRE_ANIMS.contains(&anim) && play <= up.elapsed().as_secs_f32() + 0.1 {
+            self.unconfirmed = None;
+        } else if up.elapsed() > HOOK_WINDOW {
+            self.unconfirmed = None;
+            self.ready += 1;
+            if self.ready >= self.max && self.refilling {
+                player.remove_speffect(SPEFFECT_SKILL_COOLDOWN);
+                self.refilling = false;
+            }
+            log(&format!("Claw charge given back, no shot: {}/{}", self.ready, self.max));
+        }
+    }
+}
 /// Airborne this long, or this soon after, a lethal hit is taken to be a killbox: Sixth Sense lets it through.
 const FALL_NO_SAVE_AIR: f32 = 0.5;
 const FALL_NO_SAVE_AFTER: Duration = Duration::from_millis(500);
@@ -965,6 +1032,7 @@ struct State {
     last_frame: Instant,
     fall: Fall,
     runes_file: Option<std::path::PathBuf>,
+    claws: ClawCharges,
 }
 
 fn frame(state: &mut State) {
@@ -1037,8 +1105,9 @@ fn frame(state: &mut State) {
         }
     }
     if has_speffect(&player.chr_ins, SPEFFECT_NIGHTFARER).is_some() {
-        let claw_left = has_speffect(&player.chr_ins, SPEFFECT_SKILL_COOLDOWN);
-        hud::show(state.gauge.value, claw_left.map_or(1.0, |t| (1.0 - t / CLAW_COOLDOWN).clamp(0.0, 1.0)), !state.sixth_used);
+        let claw_left = has_speffect(&player.chr_ins, SPEFFECT_SKILL_COOLDOWN).filter(|_| state.claws.ready < state.claws.max);
+        let refill = claw_left.map_or(1.0, |t| (1.0 - t / CLAW_COOLDOWN).clamp(0.0, 1.0));
+        hud::show(state.gauge.value, refill, state.claws.ready, state.claws.max, !state.sixth_used);
     } else {
         hud::hide();
     }
@@ -1058,12 +1127,12 @@ fn frame(state: &mut State) {
     }
     let cooling = has_speffect(&player.chr_ins, SPEFFECT_SKILL_COOLDOWN).is_some();
     // NR's 8 s run from the press, not from the shot: its closest shots are 7.9 s apart, and aiming doesn't add to the wait.
-    if skill && !cooling {
+    if state.claws.frame(player, cooling, skill) {
         state.aiming = true;
-        player.apply_speffect(SPEFFECT_SKILL_COOLDOWN, true);
         player.apply_speffect(SPEFFECT_SKILL, true);
         log("skill (Y + LT)");
     }
+    state.claws.confirm(player, released);
     if SKILL_HELD.load(Ordering::Relaxed) && state.aiming {
         player.apply_speffect(SPEFFECT_SKILL_HELD, true);
     }
@@ -1204,7 +1273,11 @@ pub unsafe extern "C" fn DllMain(hmodule: *const c_void, reason: u32) -> bool {
         if let Err(e) = hudhook::Hudhook::builder().with::<hudhook::hooks::dx12::ImguiDx12Hooks>(overlay).with_hmodule(module).build().apply() {
             log(&format!("HUD: overlay not hooked: {e:?}"));
         }
-        let state = Mutex::new(State { claw: Claw::Idle, stats: (0, 0), aiming: false, gauge: Gauge { value: 1.0, mean_hit: 0.0, hp: HashMap::new() }, stake_air: StakeAir::default(), dead: false, sixth_used: false, invincible_until: None, stake: Stake::default(), last_frame: Instant::now(), fall: Fall::default(), runes_file: dll.parent().map(|d| d.join("give_runes.txt")) });
+        let state = Mutex::new(State { claw: Claw::Idle, stats: (0, 0), aiming: false, gauge: Gauge { value: 1.0, mean_hit: 0.0, hp: HashMap::new() }, stake_air: StakeAir::default(), dead: false, sixth_used: false, invincible_until: None, stake: Stake::default(), last_frame: Instant::now(), fall: Fall::default(), runes_file: dll.parent().map(|d| d.join("give_runes.txt")), claws: {
+            let max = if dll.parent().is_some_and(|d| d.join(TWO_CLAWS_FILE).exists()) { 2 } else { 1 };
+            log(&format!("Claw Shot charges: {max}"));
+            ClawCharges { max, ready: max, refilling: false, seen: false, unconfirmed: None }
+        } });
         cs_task.run_recurring(
             move |_: &FD4TaskData| {
                 if let Ok(mut state) = state.lock() {
