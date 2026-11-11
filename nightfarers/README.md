@@ -1,6 +1,6 @@
 # Nightfarers
 
-Play Elden Ring Nightreign's heroes in Elden Ring. Version 0.1 has Wylder: a 13th starting class with his skill
+Play Elden Ring Nightreign's heroes in Elden Ring. Version 0.2 has Wylder: a 13th starting class with his skill
 (Claw Shot), ultimate (Onslaught Stake), passive (Sixth Sense), Nightreign's movement and his HUD icons.
 
 Only Elden Ring runs. It's single-player and offline only, loaded through [me3](https://github.com/garyttierney/me3).
