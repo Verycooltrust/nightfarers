@@ -23,15 +23,19 @@ static SHOWN: AtomicBool = AtomicBool::new(false);
 static GAUGE: AtomicU32 = AtomicU32::new(0);
 static CLAW: AtomicU32 = AtomicU32::new(0);
 static SIXTH_READY: AtomicBool = AtomicBool::new(false);
+static CLAW_READY: AtomicU32 = AtomicU32::new(1);
+static CLAW_MAX: AtomicU32 = AtomicU32::new(1);
 
 pub fn hide() {
     SHOWN.store(false, Ordering::Relaxed);
 }
 
-/// `gauge` and `claw` from 0 to 1, 1 = ready.
-pub fn show(gauge: f32, claw: f32, sixth_ready: bool) {
+/// `gauge` and `claw` from 0 to 1, 1 = ready; `claw` is the charge refilling now. `claw_ready` of `claw_max` Claw Shot charges.
+pub fn show(gauge: f32, claw: f32, claw_ready: u32, claw_max: u32, sixth_ready: bool) {
     GAUGE.store(gauge.to_bits(), Ordering::Relaxed);
     CLAW.store(claw.to_bits(), Ordering::Relaxed);
+    CLAW_READY.store(claw_ready, Ordering::Relaxed);
+    CLAW_MAX.store(claw_max, Ordering::Relaxed);
     SIXTH_READY.store(sixth_ready, Ordering::Relaxed);
     SHOWN.store(true, Ordering::Relaxed);
 }
@@ -48,21 +52,38 @@ fn load(render: &mut dyn RenderContext, path: &PathBuf) -> Option<TextureId> {
     render.load_texture(&data[8..], width, height).map_err(|e| log(&format!("HUD: {path:?}: {e:?}"))).ok()
 }
 
-/// Darken the part of a round icon not yet recharged and draw the charged arc, clockwise from the top.
-fn charge(list: &DrawListMut, c: [f32; 2], r: f32, s: f32, value: f32) {
+/// Darken the part of a round icon not yet recharged (unless `usable`: a charge is ready) and draw the charged arc, clockwise from the top.
+fn charge(list: &DrawListMut, c: [f32; 2], r: f32, s: f32, value: f32, usable: bool) {
     let at = |t: f32, r: f32| {
         let a = t * TAU;
         [c[0] + a.sin() * r, c[1] - a.cos() * r]
     };
     const STEPS: i32 = 64;
     let from = (value * STEPS as f32) as i32;
-    for i in from..STEPS {
+    for i in (from..STEPS).filter(|_| !usable) {
         let (a, b) = (i as f32 / STEPS as f32, (i + 1) as f32 / STEPS as f32);
         list.add_triangle(c, at(a, r * 0.92), at(b, r * 0.92), DARK).filled(true).build();
     }
     let arc: Vec<[f32; 2]> = (0..=from).map(|i| at(i as f32 / STEPS as f32, r * 0.96)).collect();
     if arc.len() > 1 {
         list.add_polyline(arc, GOLD).thickness(3.0 * s).build();
+    }
+}
+
+/// The number of ready charges at the icon's lower right, in gold over a dark shadow (placement my choice, NR's not measured).
+fn count(c: [f32; 2], r: f32, n: u32) {
+    use hudhook::imgui::sys;
+    let text = n.to_string();
+    let size = r * 0.9;
+    let pos = [c[0] + r * 0.45, c[1] + r * 0.1];
+    let colour = |v: [f32; 4]| unsafe { sys::igColorConvertFloat4ToU32(sys::ImVec4 { x: v[0], y: v[1], z: v[2], w: v[3] }) };
+    unsafe {
+        let list = sys::igGetBackgroundDrawList();
+        let font = sys::igGetFont();
+        let (begin, end) = (text.as_ptr() as *const _, text.as_ptr().add(text.len()) as *const _);
+        for (d, col) in [(2.0, colour([0.0, 0.0, 0.0, 0.9])), (0.0, colour(GOLD))] {
+            sys::ImDrawList_AddText_FontPtr(list, font, size, sys::ImVec2 { x: pos[0] + d, y: pos[1] + d }, col, begin, end, 0.0, std::ptr::null());
+        }
     }
 }
 
@@ -89,11 +110,16 @@ impl ImguiRenderLoop for Hud {
             }
         };
         let values = [f32::from_bits(GAUGE.load(Ordering::Relaxed)), f32::from_bits(CLAW.load(Ordering::Relaxed))];
+        let (ready, max) = (CLAW_READY.load(Ordering::Relaxed), CLAW_MAX.load(Ordering::Relaxed));
         for (sprite, (element, value)) in [ULT, SKILL].into_iter().zip(values).enumerate() {
             let (c, r) = place(element);
             image(sprite, c, r);
-            charge(&list, c, r, s, value);
+            // With 2 claw charges the arc runs once per charge; while one is still ready the icon stays bright.
+            charge(&list, c, r, s, value, sprite == 1 && ready > 0 && value < 1.0);
             image(3, c, r);
+            if sprite == 1 && max > 1 && ready == max {
+                count(c, r, ready);
+            }
         }
         if SIXTH_READY.load(Ordering::Relaxed) {
             let (c, r) = place(SIXTH);
